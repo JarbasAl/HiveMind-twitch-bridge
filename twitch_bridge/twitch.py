@@ -35,43 +35,50 @@ class Twitch:
         self._socket.send(msg)
 
     def listen(self):
-
         readbuffer = ""
         MODT = False
         if not self._connected:
             self.connect()
         self._running = True
         while self._running:
-            readbuffer = readbuffer + self._socket.recv(1024).decode("utf-8")
-            temp = readbuffer.split("\n")
-            readbuffer = temp.pop()
+            try:
+                readbuffer = readbuffer + \
+                             self._socket.recv(1024).decode("utf-8")
+                temp = readbuffer.split("\n")
+                readbuffer = temp.pop()
 
-            for line in temp:
-                # Splits the given string so we can work with it better
-                parts = line.split(":")
-                # Checks whether the message is PING because
-                # its a method of Twitch to check if you're afk
-                if (parts[0].strip() == "PING"):
-                    msg = bytes("PONG %s\r\n" % parts[1], encoding="utf-8")
-                    self._socket.send(msg)
-                else:
-                    # Only works after twitch is done announcing stuff
-                    # (MODT = Message of the day)
-                    if not MODT:
-                        for l in parts:
-                            if "End of /NAMES list" in l:
-                                MODT = True
-                        continue
-                    if "QUIT" not in parts[1] and \
-                            "JOIN" not in parts[1] and \
-                            "PART" not in parts[1]:
-                        try:
-                            message = parts[2][:len(parts[2]) - 1]
-                        except:
+                for line in temp:
+                    # Splits the given string so we can work with it better
+                    parts = line.split(":")
+                    # Checks whether the message is PING because
+                    # its a method of Twitch to check if you're afk
+                    if parts[0].strip() == "PING":
+                        msg = bytes("PONG %s\r\n" % parts[1], encoding="utf-8")
+                        self._socket.send(msg)
+                    else:
+                        # Only works after twitch is done announcing stuff
+                        # (MODT = Message of the day)
+                        if not MODT:
+                            for l in parts:
+                                if "End of /NAMES list" in l:
+                                    MODT = True
                             continue
-                        # Sets the username variable to the actual username
-                        username = parts[1].split("!")[0]
-                        self.on_message(username, message)
+                        if "QUIT" not in parts[1] and \
+                                "JOIN" not in parts[1] and \
+                                "PART" not in parts[1]:
+                            try:
+                                message = parts[2][:len(parts[2]) - 1]
+                            except:
+                                continue
+                            # Sets the username variable to the actual username
+                            username = parts[1].split("!")[0]
+                            self.on_message(username, message)
+            except socket.timeout:
+                self.on_error("Socket timeout")
+            except socket.error:
+                self.on_error("Socket error")
+            except Exception as e:
+                self.on_error(str(e))
 
     def stop_listening(self):
         self._running = False
@@ -85,3 +92,8 @@ class Twitch:
         LOG.info("Received Twitch message from: " + username)
         LOG.info("Message: " + message)
 
+    def on_error(self, error):
+        LOG.error(error)
+        self.stop_listening()
+        LOG.debug("Reconnecting...")
+        self.listen()
