@@ -1,8 +1,8 @@
-from jarbas_utils import create_daemon
+from ovos_utils import create_daemon
 from jarbas_hive_mind.slave.terminal import HiveMindTerminalProtocol,\
     HiveMindTerminal
-from jarbas_utils.log import LOG
-from jarbas_utils.messagebus import Message
+from ovos_utils.log import LOG
+from ovos_utils.messagebus import Message
 from twitch_bridge.twitch import Twitch
 
 platform = "JarbasTwitchBridgeV0.2"
